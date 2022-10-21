@@ -1,0 +1,81 @@
+const express = require('express');
+
+const app = express();
+const port = process.env.PORT || 8080;
+
+//var http=require('http');
+
+const url = require('url');
+const QRCode = require('magic-qr-code');
+const Canvas = require('canvas');
+const fs = require('fs');
+const querystring = require('querystring');
+ 
+function draw(data, size = 1024) {
+    let marginSize = 1;
+    let dataLength = data.length;
+    let dataLengthWithMargin = dataLength + 2 * marginSize;
+    let canvas = Canvas.createCanvas(size, size);
+    let ctx = canvas.getContext('2d');
+    let pointSize = Math.floor(size / dataLengthWithMargin);
+    if (pointSize === 0) {
+        throw new Error('cannot draw this QR Code');
+    }
+    let margin = Math.floor((size - (pointSize * dataLength)) / 2);
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = 'black';
+    for (let i = 0; i < dataLength; ++i) {
+        for (let j = 0; j < dataLength; ++j) {
+            if (data[i][j]) {
+                let x = j * pointSize + margin;
+                let y = i * pointSize + margin;
+                ctx.fillRect(x, y, pointSize, pointSize);
+            }
+        }
+    }
+    return canvas;
+}
+
+var server=http.createServer(function(req,res){
+    const queryObject = url.parse(req.url,true).query;
+    const qs = url.parse(req.url,true).search;
+    console.log(req.url);
+    console.log(queryObject)
+    console.log(querystring.parse(qs));
+    const geo = req.query.test;
+
+    if(req.url=='/'){
+      res.writeHead(200,{'Content-Type':'text/html'});
+      res.write('<html><body>This is Home Page.</body></html>');
+      res.end();
+    }else if(req.url=='/qrcode'){
+      let result = QRCode.encode('https://magiclen.org'.toUpperCase());
+      let canvas = draw(result);	
+      const fs = require('fs');
+      let pngBuffer = canvas.toBuffer();
+      fs.writeFileSync('./out.png', pngBuffer);
+
+      var img = fs.readFileSync('./out.png');
+      res.writeHead(200, {'Content-Type': 'image/gif' });
+      res.end(img, 'binary');
+
+      //res.writeHead(200,{'Content-Type':'text/html'});
+      //res.write('<html><body>This is student Page.</body></html>');
+       res.end();
+    }else
+       res.end('Invalid Request!');
+});
+
+app.get('/qrcode', function(req, res) {
+  const test = req.query.test;
+
+  res.send({
+    'test': test
+  });
+});
+
+//server.listen(5000, "0.0.0.0");
+app.listen(port, "0.0.0.0");
+console.log('Server started at http://localhost:' + port);
+
